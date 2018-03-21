@@ -8,6 +8,10 @@ module Nancy
 
     attr_reader :routes
 
+    def params
+      @request.params
+    end
+
     def get(path, &handler)
       route("GET", path, &handler)
     end
@@ -20,7 +24,7 @@ module Nancy
       handler = @routes.fetch(verb, {}).fetch(requested_path, nil)
 
       if handler
-        handler.call
+        instance_eval(&handler)
       else
         [404, {}, ["Oops! No such route for #{verb} #{requested_path}"]]
       end
@@ -39,6 +43,10 @@ nancy = Nancy::Base.new
 
 nancy.get "/hello" do
   [200, {}, ["Nancy says hello"]]
+end
+
+nancy.get "/" do
+  [200, {}, ["Your params are #{params.inspect}"]]
 end
 
 Rack::Handler::WEBrick.run nancy, Port: 9292
