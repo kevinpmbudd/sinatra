@@ -36,7 +36,12 @@ module Nancy
       handler = @routes.fetch(verb, {}).fetch(requested_path, nil)
 
       if handler
-        instance_eval(&handler)
+        result = instance_eval(&handler)
+        if result.class == String
+          [200, {}, [result]]
+        else
+          result
+        end
       else
         [404, {}, ["Oops! No such route for #{verb} #{requested_path}"]]
       end
@@ -53,22 +58,22 @@ module Nancy
       @request.params
     end
   end
+
+  Application = Base.new
+
+  module Delegator
+    def self.delegate(*methods, to:)
+      Array(methods).each do |method_name|
+        define_method(method_name) do |*args, &block|
+          to.send(method_name, *args, &block)
+        end
+
+        private method_name
+      end
+    end
+
+    delegate :get, :patch, :put, :post, to: Application
+  end
 end
 
-nancy = Nancy::Base.new
-
-nancy.get "/hello" do
-  [200, {}, ["Nancy says hello"]]
-end
-
-nancy.get "/" do
-  [200, {}, ["Your params are #{params.inspect}"]]
-end
-
-nancy.post "/" do
-  [200, {}, request.body]
-end
-
-Rack::Handler::WEBrick.run nancy, Port: 9292
-
-puts nancy.routes
+include Nancy::Delegator
